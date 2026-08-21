@@ -1,0 +1,24 @@
+root = "."
+tmp_dir = "tmp"
+env_files = [".env"]
+
+[build]
+cmd = "go build -o ./tmp/server ./cmd/server"
+entrypoint = ["./tmp/server"]
+include_ext = ["go", "html", "js", "css", "json", "svg", "ico", "png", "woff", "woff2"]
+include_dir = ["cmd", "internal", "web/dist"]
+exclude_dir = ["tmp", "vendor", "web/node_modules", "web/src"]
+exclude_regex = ["_test\\.go"]
+exclude_unchanged = true
+delay = 500
+stop_on_error = true
+send_interrupt = true
+
+[log]
+time = false
+
+[misc]
+clean_on_exit = true
+
+[proxy]
+enabled = false
