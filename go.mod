@@ -3,7 +3,9 @@ module github.com/edwdch/web-tty
 go 1.26.5
 
 require (
+	github.com/creack/pty v1.1.24
 	github.com/gin-gonic/gin v1.12.0
+	github.com/gorilla/websocket v1.5.3
 	github.com/joho/godotenv v1.5.1
 )
 

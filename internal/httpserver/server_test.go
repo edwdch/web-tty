@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"testing/fstest"
 
@@ -16,8 +17,9 @@ func TestSPAFallback(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	static := fstest.MapFS{
-		"index.html":    {Data: []byte("<!doctype html><title>app</title>")},
-		"assets/app.js": {Data: []byte("console.log(1)")},
+		"index.html":      {Data: []byte("<!doctype html><title>app</title>")},
+		"assets/app.js":   {Data: []byte("console.log(1)")},
+		"ghostty-vt.wasm": {Data: []byte("wasm-bytes")},
 	}
 	r := newEngine(config.Config{GinMode: gin.TestMode}, static)
 
@@ -35,6 +37,30 @@ func TestSPAFallback(t *testing.T) {
 
 	t.Run("directory falls back to index", func(t *testing.T) {
 		assertBody(t, r, "/assets", http.StatusOK, "<!doctype html><title>app</title>")
+	})
+
+	t.Run("wasm uses application/wasm", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/ghostty-vt.wasm", nil)
+		r.ServeHTTP(w, req)
+		if w.Code != http.StatusOK {
+			t.Fatalf("status = %d", w.Code)
+		}
+		if ct := w.Header().Get("Content-Type"); ct != "application/wasm" {
+			t.Fatalf("Content-Type = %q", ct)
+		}
+		if w.Body.String() != "wasm-bytes" {
+			t.Fatalf("body = %q", w.Body.String())
+		}
+	})
+
+	t.Run("ws is not spa html", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/ws", nil)
+		r.ServeHTTP(w, req)
+		if w.Code == http.StatusOK && strings.Contains(w.Body.String(), "<!doctype html>") {
+			t.Fatal("/ws fell through to index.html")
+		}
 	})
 
 	t.Run("api prefix is json 404", func(t *testing.T) {

@@ -12,6 +12,7 @@ import (
 
 	"github.com/edwdch/web-tty/internal/config"
 	"github.com/edwdch/web-tty/internal/handler"
+	"github.com/edwdch/web-tty/internal/session"
 	"github.com/edwdch/web-tty/web"
 )
 
@@ -28,9 +29,17 @@ func newEngine(cfg config.Config, static fs.FS) *gin.Engine {
 		gin.SetMode(cfg.GinMode)
 	}
 
+	factory := session.NewFactory(session.Options{
+		Shell:     cfg.Shell,
+		ShellArgs: cfg.ShellArgs,
+		Cwd:       cfg.Cwd,
+	})
+	hub := session.NewHub(cfg.MaxSessions, factory)
+
 	r := gin.New()
 	r.Use(gin.Logger(), gin.Recovery())
 	r.GET("/api/ping", handler.Ping)
+	r.GET("/ws", handler.Terminal(hub, cfg.Writable, handler.CheckOrigin(cfg.AllowOrigin)))
 	r.NoRoute(spaFallback(static))
 	return r
 }
@@ -79,6 +88,10 @@ func serveFSFile(c *gin.Context, static fs.FS, name string) {
 			return
 		}
 		reader = bytes.NewReader(data)
+	}
+
+	if strings.HasSuffix(strings.ToLower(name), ".wasm") {
+		c.Header("Content-Type", "application/wasm")
 	}
 
 	http.ServeContent(c.Writer, c.Request, info.Name(), info.ModTime(), reader)
