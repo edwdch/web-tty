@@ -7,14 +7,14 @@
 | 路径 | 职责 |
 |------|------|
 | `cmd/server/` | 薄入口：加载 `.env`、读配置、启动 HTTP |
-| `internal/config/` | 环境变量配置（`ADDR`、`DIST_DIR`、`GIN_MODE`） |
+| `internal/config/` | 环境变量配置（`ADDR`、`GIN_MODE`） |
 | `internal/handler/` | HTTP handler（目前只有 ping） |
-| `internal/httpserver/` | Gin 引擎、路由注册、`web/dist` SPA 托管 |
-| `web/` | 前端。由官方 `shadcn init -t vite` 生成 |
-| `.air.toml` | air 热重载；监控 `cmd/`、`internal/`、**`web/dist`** |
+| `internal/httpserver/` | Gin 引擎、路由注册、embed `web/dist` 托管 SPA |
+| `web/` | 前端。由官方 `shadcn init -t vite` 生成。`web/fs.go` 用 `//go:embed all:dist` 把构建产物打进二进制 |
+| `.air.toml` | air 热重载；监控 `cmd/`、`internal/`、`web/`（含 embed 的 `web/dist`） |
 | `.env.example` | 配置示例；真实 `.env` 不入库 |
 
-`cmd/` 只接线。新 API 写在 `internal/handler`，在 `internal/httpserver` 注册。`/api/*` 走 JSON；其余路径先找 `web/dist` 静态文件，否则回退 `index.html`。
+`cmd/` 只接线。新 API 写在 `internal/handler`，在 `internal/httpserver` 注册。`/api/*` 走 JSON；其余路径从 embed 的 `web/dist` 取静态文件，否则回退 `index.html`。没有 `DIST_DIR`，不允许自定义前端目录。
 
 ## 命令
 
@@ -24,30 +24,30 @@
 |------|------|
 | `make dev` | **仅供人类本地开发**：先构建前端，再并行 `vite build --watch` + `air` |
 | `make test` | `go test ./...` |
-| `make build` | 构建 `web/dist` 与 `bin/server` |
-| `make web-build` | 只构建前端 |
+| `make build` | 构建前端并 embed 进 `bin/server` |
+| `make web-build` | 只构建前端（并补 `web/dist/.gitkeep`，保证纯 `go test` 能编过 embed） |
 | `make tidy` | `go mod tidy` + `pnpm --dir web install` |
-| `go run ./cmd/server` | 一次性启动后端（需已有 `web/dist` 才能看页面） |
+| `go run ./cmd/server` | 一次性启动后端（须先有 `web/dist`：embed 是编译期依赖） |
 | `pnpm --dir web build` | 一次性前端生产构建 |
 | `pnpm --dir web dev` | 仅 Vite HMR（`/api` 代理到 `:8080`，需另开后端） |
 
 `make dev` 监听：
 
 - 前端源码 → `pnpm --dir web run build:watch` 写入 `web/dist`
-- Go 源码与 **`web/dist` 产物** → air 重建并重启 Gin（`:8080`）
+- Go 源码与 **`web/dist` 产物** → air 重建 Go（重新 embed）并重启 Gin（`:8080`）
 
-## 禁止用 `make dev` 测试
+## 验证
 
-`make dev` 是长驻进程，**agent 不得用它做实现、验证或测试**。
+本地开发时 `make dev` 通常已在运行。前端写入 `web/dist`、air 重建 Go（重新 embed）并重启，改动会实时生效，**直接对已有进程验证**（默认 `:8080`），不要再短跑 `go run ./cmd/server`。
 
-改用：
+`make dev` 是长驻进程，由人维护。**agent 不要自己启动** `make dev` / air，也不要在后台再开一份。
 
-1. `pnpm --dir web build`
-2. `go test ./...` 或 `make test`
-3. 短跑 `go run ./cmd/server`，用 `curl` 打 `/api/ping` 和 `/`
-4. 验证结束后关掉该进程
+验证用：
 
-`make build` 同样可用。不要在后台留着 air / `make dev`。
+1. `go test ./...` 或 `make test`
+2. 对已在跑的服务用 `curl` 打 `/api/ping` 和 `/`
+
+一次性生产构建用 `pnpm --dir web build` 或 `make build`。
 
 ## 配置
 
@@ -55,9 +55,9 @@
 
 - `.env` 不存在不失败
 - **已存在的进程环境变量优先**，`.env` 不覆盖
-- 代码默认值：`ADDR=:8080`、`DIST_DIR=web/dist`、`GIN_MODE=debug`
+- 代码默认值：`ADDR=:8080`、`GIN_MODE=debug`
 
-新增配置项时同步改 `internal/config` 和 `.env.example`。在仓库根目录运行进程，以便找到 `.env` 与 `web/dist`。
+新增配置项时同步改 `internal/config` 和 `.env.example`。在仓库根目录运行进程，以便找到 `.env`。
 
 ## 前端组件
 
@@ -86,8 +86,8 @@ pnpm dlx shadcn@latest init -t vite -n web --no-monorepo --base radix --preset n
 
 - `go test ./...` 通过
 - `pnpm --dir web build` 通过
-- `GET /api/ping` 返回 `{"message":"pong"}`
-- `/` 能拿到前端 `index.html`（需先 `pnpm --dir web build`）
+- `GET /api/ping` 返回 `{"message":"pong"}`（打已在跑的 `make dev`）
+- `/` 能拿到 embed 的前端 `index.html`（`make dev` 已在 watch 时无需再短跑后端）
 
 ## 推荐依赖（尚未安装）
 

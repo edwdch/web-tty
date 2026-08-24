@@ -1,6 +1,6 @@
 # simple-app
 
-Go (Gin) + React (Vite, shadcn/ui, Tailwind CSS) 模板。后端提供 `GET /api/ping`，前端构建产物由 Gin 托管。
+Go (Gin) + React (Vite, shadcn/ui, Tailwind CSS) 模板。后端提供 `GET /api/ping`。前端构建产物在编译期 embed 进二进制，Gin 从 embed FS 托管。
 
 ## 要求
 
@@ -18,15 +18,15 @@ make dev
 浏览器打开 http://127.0.0.1:8080 。`make dev` 会：
 
 1. 构建 `web/dist`
-2. 并行监控前端源码（`vite build --watch`）和后端（air，含 `web/dist`）
+2. 并行监控前端源码（`vite build --watch`）和后端（air 看到 `web/dist` 变化后重建 Go、重新 embed，再重启）
 
-配置见 `.env.example`：`ADDR`、`DIST_DIR`、`GIN_MODE`。`.env` 不覆盖已有环境变量。
+配置见 `.env.example`：`ADDR`、`GIN_MODE`。`.env` 不覆盖已有环境变量。UI 固定打进二进制，没有 `DIST_DIR`。
 
 ## 常用命令
 
 ```bash
 make test          # go test ./...
-make build         # 前端 + bin/server
+make build         # 前端 embed 进 bin/server
 make web-build     # 只构建前端
 go run ./cmd/server
 pnpm --dir web dev # 仅 Vite；/api 代理到 :8080

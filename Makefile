@@ -12,6 +12,7 @@ dev-api:
 
 web-build:
 	pnpm --dir web build
+	touch web/dist/.gitkeep
 
 build: web-build
 	mkdir -p bin
