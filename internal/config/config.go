@@ -4,6 +4,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type Config struct {
@@ -15,6 +16,7 @@ type Config struct {
 	Writable    bool
 	AllowOrigin []string
 	MaxSessions int
+	SessionIdle time.Duration
 }
 
 func Load() Config {
@@ -26,7 +28,8 @@ func Load() Config {
 		Cwd:         getenv("CWD", ""),
 		Writable:    getenvBool("WRITABLE", true),
 		AllowOrigin: splitComma(getenv("ALLOW_ORIGIN", "")),
-		MaxSessions: getenvInt("MAX_SESSIONS", 8),
+		MaxSessions: getenvInt("MAX_SESSIONS", 50),
+		SessionIdle: getenvDuration("SESSION_IDLE", 168*time.Hour),
 	}
 }
 
@@ -62,6 +65,21 @@ func getenvInt(key string, fallback int) int {
 		return fallback
 	}
 	return n
+}
+
+func getenvDuration(key string, fallback time.Duration) time.Duration {
+	v := getenv(key, "")
+	if v == "" {
+		return fallback
+	}
+	if v == "0" {
+		return 0
+	}
+	d, err := time.ParseDuration(v)
+	if err != nil || d < 0 {
+		return fallback
+	}
+	return d
 }
 
 func splitComma(v string) []string {

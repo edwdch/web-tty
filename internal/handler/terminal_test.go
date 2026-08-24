@@ -44,10 +44,15 @@ func TestCheckOrigin(t *testing.T) {
 
 type fullHub struct{}
 
-func (fullHub) TryAcquire() bool { return false }
-func (fullHub) Release()         {}
-func (fullHub) Start(uint16, uint16) (session.Conn, error) {
-	panic("Start should not run")
+func (fullHub) Full() bool { return true }
+func (fullHub) Has(string) bool {
+	return false
+}
+func (fullHub) Create(uint16, uint16) (session.Handle, error) {
+	panic("Create should not run")
+}
+func (fullHub) Get(string) (session.Handle, error) {
+	panic("Get should not run")
 }
 
 func TestTerminalTooManySessions(t *testing.T) {
@@ -74,7 +79,7 @@ func TestTerminalTooManySessions(t *testing.T) {
 
 func TestTerminalEchoAndIndependentSessions(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	hub := session.NewHub(4, session.NewFactory(session.Options{Shell: "/bin/cat"}))
+	hub := testCatHub(t, 4)
 	r := gin.New()
 	r.GET("/ws", handler.Terminal(hub, true, handler.CheckOrigin(nil)))
 	srv := httptest.NewServer(r)
@@ -102,7 +107,7 @@ func TestTerminalEchoAndIndependentSessions(t *testing.T) {
 
 func TestTerminalInvalidHelloCloses(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	hub := session.NewHub(2, session.NewFactory(session.Options{Shell: "/bin/cat"}))
+	hub := testCatHub(t, 2)
 	r := gin.New()
 	r.GET("/ws", handler.Terminal(hub, true, handler.CheckOrigin(nil)))
 	srv := httptest.NewServer(r)
@@ -167,7 +172,7 @@ func TestTerminalKeepAlive(t *testing.T) {
 
 func TestTerminalReadonlyIgnoresInput(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	hub := session.NewHub(2, session.NewFactory(session.Options{Shell: "/bin/cat"}))
+	hub := testCatHub(t, 2)
 	r := gin.New()
 	r.GET("/ws", handler.Terminal(hub, false, handler.CheckOrigin(nil)))
 	srv := httptest.NewServer(r)
@@ -193,7 +198,7 @@ type wsPump struct {
 func startCatSession(t *testing.T) *websocket.Conn {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
-	hub := session.NewHub(4, session.NewFactory(session.Options{Shell: "/bin/cat"}))
+	hub := testCatHub(t, 4)
 	r := gin.New()
 	r.GET("/ws", handler.Terminal(hub, true, handler.CheckOrigin(nil)))
 	srv := httptest.NewServer(r)
@@ -203,6 +208,13 @@ func startCatSession(t *testing.T) *websocket.Conn {
 	t.Cleanup(func() { _ = conn.Close() })
 	writeBin(t, conn, []byte(`{"columns":80,"rows":24}`))
 	return conn
+}
+
+func testCatHub(t *testing.T, max int) *session.Hub {
+	t.Helper()
+	hub := session.NewHub(max, session.NewFactory(session.Options{Shell: "/bin/cat"}), 0)
+	t.Cleanup(hub.Stop)
+	return hub
 }
 
 func pumpWS(conn *websocket.Conn) *wsPump {
@@ -247,7 +259,12 @@ func waitOutputContains(t *testing.T, p *wsPump, needle []byte) []byte {
 
 func dialWS(t *testing.T, srv *httptest.Server) *websocket.Conn {
 	t.Helper()
-	u := "ws" + strings.TrimPrefix(srv.URL, "http") + "/ws"
+	return dialWSPath(t, srv, "/ws")
+}
+
+func dialWSPath(t *testing.T, srv *httptest.Server, path string) *websocket.Conn {
+	t.Helper()
+	u := "ws" + strings.TrimPrefix(srv.URL, "http") + path
 	conn, resp, err := websocket.DefaultDialer.Dial(u, nil)
 	if err != nil {
 		if resp != nil {
@@ -257,6 +274,32 @@ func dialWS(t *testing.T, srv *httptest.Server) *websocket.Conn {
 		t.Fatalf("dial: %v", err)
 	}
 	return conn
+}
+
+func readInfoID(t *testing.T, conn *websocket.Conn) string {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		_ = conn.SetReadDeadline(time.Now().Add(time.Second))
+		_, msg, err := conn.ReadMessage()
+		if err != nil {
+			t.Fatalf("read info: %v", err)
+		}
+		if len(msg) > 0 && msg[0] == session.MsgInfo {
+			var body struct {
+				ID string `json:"id"`
+			}
+			if err := json.Unmarshal(msg[1:], &body); err != nil {
+				t.Fatalf("info json: %v", err)
+			}
+			if body.ID == "" {
+				t.Fatal("empty session id")
+			}
+			return body.ID
+		}
+	}
+	t.Fatal("timed out waiting for info")
+	return ""
 }
 
 func writeBin(t *testing.T, conn *websocket.Conn, msg []byte) {

@@ -67,3 +67,16 @@ func OutputFrame(data []byte) []byte {
 	copy(out[1:], data)
 	return out
 }
+
+func InfoFrame(id string) []byte {
+	body, err := json.Marshal(struct {
+		ID string `json:"id"`
+	}{ID: id})
+	if err != nil {
+		body = []byte(`{"id":""}`)
+	}
+	out := make([]byte, 1+len(body))
+	out[0] = MsgInfo
+	copy(out[1:], body)
+	return out
+}

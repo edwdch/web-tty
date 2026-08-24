@@ -1,6 +1,6 @@
 # AGENTS.md
 
-本仓库是浏览器 Web TTY：Go（Gin）+ React（Vite / shadcn/ui / Tailwind）+ `@wterm/ghostty`。每个浏览器 tab 一条 WebSocket、一个 PTY（ttyd 同款），进页即全屏终端。不要预建空的 `repository/`、`service/`、`models/` 等分层目录。不要加鉴权、Docker、应用内会话列表或 tmux 持久化。
+本仓库是浏览器 Web TTY：Go（Gin）+ React（Vite / shadcn/ui / Tailwind）+ `@wterm/ghostty`。每个浏览器 tab 一条 WebSocket；PTY 活在进程内 Hub 里，关页是 detach 不是杀进程。进页时若没有运行中的 session 就直接新建；若有则弹窗选择继续或新建。右上角固定半透明按钮可切换 / 关闭 session。多 tab 可以 attach 同一个 PTY。不要预建空的 `repository/`、`service/`、`models/` 等分层目录。不要加鉴权、Docker 或 tmux；session 只在本进程内存里，服务重启即全部丢失。
 
 ## 目录
 
@@ -15,9 +15,9 @@
 | `.air.toml` | air 热重载；监控 `cmd/`、`internal/`、`web/`（含 embed 的 `web/dist`） |
 | `.env.example` | 配置示例；真实 `.env` 不入库 |
 
-`cmd/` 只接线。新 API 写在 `internal/handler`，在 `internal/httpserver` 注册。`/api/*` 走 JSON；`GET /ws` 升级为终端；其余路径从 embed 的 `web/dist` 取静态文件，否则回退 `index.html`。没有 `DIST_DIR`，不允许自定义前端目录。
+`cmd/` 只接线。新 API 写在 `internal/handler`，在 `internal/httpserver` 注册。`/api/*` 走 JSON（`/api/ping`、`GET /api/sessions`、`DELETE /api/sessions/:id`）；`GET /ws` 新建 PTY，`GET /ws?id=` attach 已有；其余路径从 embed 的 `web/dist` 取静态文件，否则回退 `index.html`。没有 `DIST_DIR`，不允许自定义前端目录。
 
-一 WS 一 PTY：多 tab 互不影响；关 tab / 刷新 / 断线杀进程。重连是新 PTY，不恢复旧会话。
+一 WS 一连接，PTY 归 Hub。关 tab / 刷新 / 断线只 detach，PTY 继续跑（输出进 1MiB ring，再 attach 时 replay）。真正杀掉：UI 关闭、shell 自己退出、最后一个 client 离开超过 `SESSION_IDLE`（默认一周）、或进程退出。不要自动重连。
 
 ## 命令
 
@@ -61,7 +61,7 @@
 
 - `.env` 不存在不失败
 - **已存在的进程环境变量优先**，`.env` 不覆盖
-- 代码默认值：`ADDR=:8080`、`GIN_MODE=debug`、`SHELL=/bin/bash`、`SHELL_ARGS=-l`、`WRITABLE=true`、`MAX_SESSIONS=8`
+- 代码默认值：`ADDR=:8080`、`GIN_MODE=debug`、`SHELL=/bin/bash`、`SHELL_ARGS=-l`、`WRITABLE=true`、`MAX_SESSIONS=50`、`SESSION_IDLE=168h`（`0` 关闭空闲回收）
 - `CWD` 空则继承进程 cwd
 - `ALLOW_ORIGIN` 空则 WebSocket 仅同源；Vite `:5173` 时再填 `http://127.0.0.1:5173`
 
@@ -73,7 +73,7 @@
 
 ## 前端
 
-页面只有全屏终端，无顶栏、无 ping 卡片。断线弹出 shadcn `AlertDialog`：Reconnect（`location.reload()`，新 PTY）或 Close page（`window.close()`，失败则 `about:blank`）。不要自动重连。不要恢复 `d` 切主题快捷键。
+页面只有全屏终端，无顶栏、无 ping 卡片。右上角 `position: fixed` 半透明 Sessions 按钮（页面滚动也不跟着走），点开 Dialog 切换或关闭 session。进页无运行中 session 则直接新建；有则弹窗选择。断线弹出 shadcn `AlertDialog`：Reconnect（`location.reload()`，再走进页规则）或 Close page（`window.close()`，失败则 `about:blank`）。不要自动重连。不要恢复 `d` 切主题快捷键。
 
 Ghostty wasm 由 Vite 通过 `import.meta.url` 打进 `web/dist/assets/*.wasm`，不要手抄进 git。
 
@@ -106,6 +106,7 @@ pnpm dlx shadcn@latest init -t vite -n web --no-monorepo --base radix --preset n
 - `go test ./...` 通过
 - `pnpm --dir web build` 通过
 - `GET /api/ping` 返回 `{"message":"pong"}`
+- `GET /api/sessions` 返回 `{"sessions":[...]}`
 - `/` 能拿到 embed 的前端 `index.html`
 - `.wasm` 响应 `Content-Type: application/wasm`（见 `httpserver` 测试）
 

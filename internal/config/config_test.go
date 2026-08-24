@@ -3,6 +3,7 @@ package config
 import (
 	"reflect"
 	"testing"
+	"time"
 )
 
 func TestLoadDefaults(t *testing.T) {
@@ -14,6 +15,7 @@ func TestLoadDefaults(t *testing.T) {
 	t.Setenv("WRITABLE", "")
 	t.Setenv("ALLOW_ORIGIN", "")
 	t.Setenv("MAX_SESSIONS", "")
+	t.Setenv("SESSION_IDLE", "")
 
 	// Unset so getenv fallbacks apply. t.Setenv("") still sets the key;
 	// clear by setting then using a subprocess-free approach: Load uses LookupEnv
@@ -40,8 +42,11 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.AllowOrigin != nil {
 		t.Fatalf("AllowOrigin = %#v", cfg.AllowOrigin)
 	}
-	if cfg.MaxSessions != 8 {
+	if cfg.MaxSessions != 50 {
 		t.Fatalf("MaxSessions = %d", cfg.MaxSessions)
+	}
+	if cfg.SessionIdle != 168*time.Hour {
+		t.Fatalf("SessionIdle = %s", cfg.SessionIdle)
 	}
 }
 
@@ -54,6 +59,7 @@ func TestLoadOverrides(t *testing.T) {
 	t.Setenv("WRITABLE", "false")
 	t.Setenv("ALLOW_ORIGIN", "http://127.0.0.1:5173, https://term.example.com")
 	t.Setenv("MAX_SESSIONS", "3")
+	t.Setenv("SESSION_IDLE", "24h")
 
 	cfg := Load()
 	if cfg.Addr != ":9090" || cfg.GinMode != "release" {
@@ -77,5 +83,22 @@ func TestLoadOverrides(t *testing.T) {
 	}
 	if cfg.MaxSessions != 3 {
 		t.Fatalf("MaxSessions = %d", cfg.MaxSessions)
+	}
+	if cfg.SessionIdle != 24*time.Hour {
+		t.Fatalf("SessionIdle = %s", cfg.SessionIdle)
+	}
+}
+
+func TestLoadSessionIdleZeroAndInvalid(t *testing.T) {
+	t.Setenv("SESSION_IDLE", "0")
+	cfg := Load()
+	if cfg.SessionIdle != 0 {
+		t.Fatalf("zero idle = %s", cfg.SessionIdle)
+	}
+
+	t.Setenv("SESSION_IDLE", "nope")
+	cfg = Load()
+	if cfg.SessionIdle != 168*time.Hour {
+		t.Fatalf("invalid idle = %s", cfg.SessionIdle)
 	}
 }

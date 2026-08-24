@@ -29,9 +29,10 @@ var (
 )
 
 type TerminalHub interface {
-	TryAcquire() bool
-	Release()
-	Start(columns, rows uint16) (session.Conn, error)
+	Full() bool
+	Has(id string) bool
+	Create(columns, rows uint16) (session.Handle, error)
+	Get(id string) (session.Handle, error)
 }
 
 func CheckOrigin(allow []string) func(*http.Request) bool {
@@ -66,11 +67,16 @@ func Terminal(hub TerminalHub, writable bool, checkOrigin func(*http.Request) bo
 		CheckOrigin:     checkOrigin,
 	}
 	return func(c *gin.Context) {
-		if !hub.TryAcquire() {
+		attachID := strings.TrimSpace(c.Query("id"))
+		if attachID != "" {
+			if !hub.Has(attachID) {
+				c.JSON(http.StatusNotFound, gin.H{"error": "session not found"})
+				return
+			}
+		} else if hub.Full() {
 			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "too many sessions"})
 			return
 		}
-		defer hub.Release()
 
 		conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 		if err != nil {
@@ -79,11 +85,11 @@ func Terminal(hub TerminalHub, writable bool, checkOrigin func(*http.Request) bo
 		defer conn.Close()
 		enableTCPKeepAlive(conn)
 
-		serveTerminal(conn, hub, writable)
+		serveTerminal(conn, hub, writable, attachID)
 	}
 }
 
-func serveTerminal(conn *websocket.Conn, hub TerminalHub, writable bool) {
+func serveTerminal(conn *websocket.Conn, hub TerminalHub, writable bool, attachID string) {
 	conn.SetReadLimit(1 << 20)
 	_ = conn.SetReadDeadline(time.Now().Add(handshakeTimeout))
 
@@ -96,17 +102,18 @@ func serveTerminal(conn *websocket.Conn, hub TerminalHub, writable bool) {
 		return
 	}
 
-	sess, err := hub.Start(size.Columns, size.Rows)
+	var handle session.Handle
+	if attachID == "" {
+		handle, err = hub.Create(size.Columns, size.Rows)
+	} else {
+		handle, err = hub.Get(attachID)
+		if err == nil {
+			_ = handle.Resize(size.Columns, size.Rows)
+		}
+	}
 	if err != nil {
 		return
 	}
-	defer sess.Close()
-
-	_ = conn.SetReadDeadline(time.Now().Add(pongWait))
-	conn.SetPongHandler(func(string) error {
-		_ = conn.SetReadDeadline(time.Now().Add(pongWait))
-		return nil
-	})
 
 	var writeMu sync.Mutex
 	writeFrame := func(payload []byte) error {
@@ -116,21 +123,37 @@ func serveTerminal(conn *websocket.Conn, hub TerminalHub, writable bool) {
 		return conn.WriteMessage(websocket.BinaryMessage, payload)
 	}
 
+	if err := writeFrame(session.InfoFrame(handle.ID())); err != nil {
+		return
+	}
+
+	clientID, out, replay, err := handle.AddClient()
+	if err != nil {
+		return
+	}
+	defer handle.RemoveClient(clientID)
+	if len(replay) > 0 {
+		if err := writeFrame(session.OutputFrame(replay)); err != nil {
+			return
+		}
+	}
+
+	_ = conn.SetReadDeadline(time.Now().Add(pongWait))
+	conn.SetPongHandler(func(string) error {
+		_ = conn.SetReadDeadline(time.Now().Add(pongWait))
+		return nil
+	})
+
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		buf := make([]byte, readBufSize)
-		for {
-			n, rerr := sess.Read(buf)
-			if n > 0 {
-				if werr := writeFrame(session.OutputFrame(buf[:n])); werr != nil {
-					return
-				}
-			}
-			if rerr != nil {
+		for frame := range out {
+			if werr := writeFrame(frame); werr != nil {
+				_ = conn.Close()
 				return
 			}
 		}
+		_ = conn.Close()
 	}()
 
 	go func() {
@@ -165,22 +188,22 @@ func serveTerminal(conn *websocket.Conn, hub TerminalHub, writable bool) {
 		switch msg[0] {
 		case session.CmdInput:
 			if writable && len(msg) > 1 {
-				_, _ = sess.Write(msg[1:])
+				_, _ = handle.Write(msg[1:])
 			}
 		case session.CmdResize:
 			if sz, err := session.ParseResize(msg); err == nil {
-				_ = sess.Resize(sz.Columns, sz.Rows)
+				_ = handle.Resize(sz.Columns, sz.Rows)
 			}
 		case session.CmdPause:
-			sess.Pause()
+			handle.Pause()
 		case session.CmdResume:
-			sess.Resume()
+			handle.Resume()
 		case session.CmdPing:
 			// keep-alive; read deadline already refreshed
 		}
 	}
 	_ = conn.Close()
-	_ = sess.Close()
+	handle.RemoveClient(clientID)
 	<-done
 }
 

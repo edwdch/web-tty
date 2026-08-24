@@ -23,9 +23,25 @@ export type Size = {
 const encoder = new TextEncoder()
 const decoder = new TextDecoder()
 
-export function wsURL(): string {
+export function wsURL(id?: string): string {
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:"
-  return `${protocol}//${window.location.host}/ws`
+  const url = `${protocol}//${window.location.host}/ws`
+  if (!id) {
+    return url
+  }
+  return `${url}?id=${encodeURIComponent(id)}`
+}
+
+export function decodeInfo(payload: Uint8Array): { id: string } | null {
+  try {
+    const value = JSON.parse(decoder.decode(payload)) as { id?: unknown }
+    if (typeof value?.id === "string" && value.id !== "") {
+      return { id: value.id }
+    }
+  } catch {
+    return null
+  }
+  return null
 }
 
 export function encodeHello(size: Size): Uint8Array {

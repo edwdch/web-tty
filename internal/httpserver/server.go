@@ -34,11 +34,13 @@ func newEngine(cfg config.Config, static fs.FS) *gin.Engine {
 		ShellArgs: cfg.ShellArgs,
 		Cwd:       cfg.Cwd,
 	})
-	hub := session.NewHub(cfg.MaxSessions, factory)
+	hub := session.NewHub(cfg.MaxSessions, factory, cfg.SessionIdle)
 
 	r := gin.New()
 	r.Use(gin.Logger(), gin.Recovery())
 	r.GET("/api/ping", handler.Ping)
+	r.GET("/api/sessions", handler.ListSessions(hub))
+	r.DELETE("/api/sessions/:id", handler.DeleteSession(hub))
 	r.GET("/ws", handler.Terminal(hub, cfg.Writable, handler.CheckOrigin(cfg.AllowOrigin)))
 	r.NoRoute(spaFallback(static))
 	return r

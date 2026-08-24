@@ -91,20 +91,6 @@ func TestTwoSessionsIndependentPIDs(t *testing.T) {
 	}
 }
 
-func TestHubMaxSessions(t *testing.T) {
-	hub := NewHub(1, NewFactory(Options{Shell: "/bin/cat"}))
-	if !hub.TryAcquire() {
-		t.Fatal("first acquire")
-	}
-	if hub.TryAcquire() {
-		t.Fatal("second acquire should fail")
-	}
-	hub.Release()
-	if !hub.TryAcquire() {
-		t.Fatal("acquire after release")
-	}
-}
-
 func startTest(t *testing.T, opts Options, cols, rows uint16) *Session {
 	t.Helper()
 	s, err := Start(opts, cols, rows)

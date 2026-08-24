@@ -61,6 +61,16 @@ func TestCmdPingByte(t *testing.T) {
 	}
 }
 
+func TestInfoFrame(t *testing.T) {
+	got := InfoFrame("abc123")
+	if got[0] != MsgInfo {
+		t.Fatalf("type = %q", got[0])
+	}
+	if !bytes.Contains(got[1:], []byte(`"id":"abc123"`)) {
+		t.Fatalf("body = %s", got[1:])
+	}
+}
+
 func TestOutputFrame(t *testing.T) {
 	got := OutputFrame([]byte("hi"))
 	if !bytes.Equal(got, []byte{'0', 'h', 'i'}) {

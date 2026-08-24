@@ -57,6 +57,21 @@ func TestSPAFallback(t *testing.T) {
 		}
 	})
 
+	t.Run("sessions api is json not spa", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/api/sessions", nil)
+		r.ServeHTTP(w, req)
+		if w.Code != http.StatusOK {
+			t.Fatalf("status = %d", w.Code)
+		}
+		if !strings.Contains(w.Body.String(), `"sessions"`) {
+			t.Fatalf("body = %q", w.Body.String())
+		}
+		if strings.Contains(w.Body.String(), "<!doctype html>") {
+			t.Fatal("/api/sessions fell through to index.html")
+		}
+	})
+
 	t.Run("api prefix is json 404", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodGet, "/api/missing", nil)

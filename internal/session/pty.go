@@ -26,6 +26,7 @@ type Conn interface {
 	Resize(columns, rows uint16) error
 	Pause()
 	Resume()
+	PID() int
 }
 
 type Session struct {

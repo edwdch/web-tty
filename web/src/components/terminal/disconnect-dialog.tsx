@@ -21,8 +21,9 @@ export function DisconnectDialog({ open, onReconnect, onClosePage }: Props) {
         <AlertDialogHeader>
           <AlertDialogTitle>Disconnected</AlertDialogTitle>
           <AlertDialogDescription>
-            The terminal session has ended. Reconnect starts a new shell. Close
-            this page to leave.
+            The connection was lost. The session may still be running in the
+            background. Reconnect reloads this page so you can attach again or
+            start a new shell.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

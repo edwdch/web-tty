@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 
 import {
   Msg,
+  decodeInfo,
   decodeTitle,
   encodeHello,
   encodeInput,
@@ -15,33 +16,56 @@ import {
 
 export type Writer = (data: Uint8Array | string) => void
 
+export type ConnectTarget = "new" | string
+
 export function useTerminalSession() {
   const wsRef = useRef<WebSocket | null>(null)
   const writeRef = useRef<Writer>(() => {})
   const sizeRef = useRef<Size>({ columns: 80, rows: 24 })
   const helloSentRef = useRef(false)
   const readyRef = useRef(false)
+  const expectedCloseRef = useRef(false)
   const [ready, setReady] = useState(false)
   const [disconnected, setDisconnected] = useState(false)
+  const [sessionId, setSessionId] = useState<string | null>(null)
+  const [target, setTarget] = useState<ConnectTarget | null>(null)
 
   const registerWriter = useCallback((fn: Writer) => {
     writeRef.current = fn
-    if (!readyRef.current) {
-      readyRef.current = true
-      setReady(true)
-    }
+    readyRef.current = true
+    setReady(true)
+  }, [])
+
+  const resetWriter = useCallback(() => {
+    writeRef.current = () => {}
+    readyRef.current = false
+    setReady(false)
+  }, [])
+
+  const connect = useCallback((next: ConnectTarget) => {
+    expectedCloseRef.current = true
+    setDisconnected(false)
+    setSessionId(null)
+    setTarget(next)
+  }, [])
+
+  const disconnectExpected = useCallback(() => {
+    expectedCloseRef.current = true
+    setTarget(null)
+    setSessionId(null)
   }, [])
 
   useEffect(() => {
-    if (!ready) {
+    if (!ready || target === null) {
       return
     }
 
     let cancelled = false
     let pingTimer = 0
+    expectedCloseRef.current = false
     helloSentRef.current = false
 
-    const ws = new WebSocket(wsURL())
+    const ws = new WebSocket(target === "new" ? wsURL() : wsURL(target))
     ws.binaryType = "arraybuffer"
     wsRef.current = ws
 
@@ -91,6 +115,13 @@ export function useTerminalSession() {
       if (buf.length === 0) {
         return
       }
+      if (buf[0] === Msg.Info) {
+        const info = decodeInfo(buf.subarray(1))
+        if (info) {
+          setSessionId(info.id)
+        }
+        return
+      }
       if (buf[0] === Msg.Output) {
         writeRef.current(buf.subarray(1))
         return
@@ -102,7 +133,7 @@ export function useTerminalSession() {
     }
 
     ws.onclose = () => {
-      if (cancelled) {
+      if (cancelled || expectedCloseRef.current) {
         return
       }
       setDisconnected(true)
@@ -117,7 +148,7 @@ export function useTerminalSession() {
         wsRef.current = null
       }
     }
-  }, [ready])
+  }, [ready, target])
 
   const sendInput = useCallback((data: string) => {
     const ws = wsRef.current
@@ -155,8 +186,13 @@ export function useTerminalSession() {
 
   return {
     registerWriter,
+    resetWriter,
+    connect,
+    disconnectExpected,
     sendInput,
     sendResize,
+    ready,
+    sessionId,
     disconnected,
     reconnect,
     closePage,
