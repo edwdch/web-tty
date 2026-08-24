@@ -25,6 +25,7 @@
 | `make dev` | **仅供人类本地开发**：先构建前端，再并行 `vite build --watch` + `air` |
 | `make test` | `go test ./...` |
 | `make build` | 构建前端并 embed 进 `bin/server` |
+| `make release-build` | 同上，`CGO_ENABLED=0` + 剥离符号，供发版 |
 | `make web-build` | 只构建前端（并补 `web/dist/.gitkeep`，保证纯 `go test` 能编过 embed） |
 | `make tidy` | `go mod tidy` + `pnpm --dir web install` |
 | `go run ./cmd/server` | 一次性启动后端（须先有 `web/dist`：embed 是编译期依赖） |
@@ -59,12 +60,14 @@
 
 新增配置项时同步改 `internal/config` 和 `.env.example`。在仓库根目录运行进程，以便找到 `.env`。
 
+推送 `v*` tag 会跑 `.github/workflows/release.yml`：测过后编前端、打 linux/amd64 单二进制，挂到 GitHub Release（`simple-app_<tag>_linux_amd64`）。派生项目时改 `go.mod` module 名、import 路径和 workflow 产物名。
+
 ## 前端组件
 
 必须用官方 CLI 添加 shadcn 组件，禁止手写或从 GitHub 复制组件源码：
 
 ```bash
-pnpm --dir web dlx shadcn@latest add <component> -y
+pnpm --dir web dlx shadcn@latest add <component> -y -c web
 ```
 
 初始化时已用：
@@ -78,6 +81,7 @@ pnpm dlx shadcn@latest init -t vite -n web --no-monorepo --base radix --preset n
 ## 后端约定
 
 - 新接口放 `internal/handler`，路由挂在 `internal/httpserver`
+- 有副作用的逻辑放独立包，handler 注入接口以便单测（不要为尚未存在的调用预建空包）
 - 不要引入数据库相关依赖，除非任务明确要求
 - 不要为「以后可能用到」加空包或空文件
 - 测试用标准库 `httptest` + `go test`
@@ -117,9 +121,9 @@ Gin 已带 `go-playground/validator`。`.env` 读取已使用 `github.com/joho/g
 | 表单 | `react-hook-form` + `@hookform/resolvers` |
 | 客户端状态 | `zustand` |
 | HTTP | 先用 `fetch`；复杂场景再 `ky` |
-| Toast | `sonner`（`pnpm --dir web dlx shadcn@latest add sonner -y`） |
-| 暗色 | 已有 `web/src/components/theme-provider.tsx`（按 `d` 切换） |
+| Toast | `sonner`（`pnpm --dir web dlx shadcn@latest add sonner -y -c web`） |
+| 暗色 | `theme-provider.tsx` + 顶栏 `theme-toggle.tsx`（Light / Dark / System；按 `d` 仍可切换） |
 | 测试 | `vitest`、`@testing-library/react`、Playwright |
-| 表格 | `@tanstack/react-table` + `pnpm --dir web dlx shadcn@latest add table -y` |
+| 表格 | `@tanstack/react-table` + `pnpm --dir web dlx shadcn@latest add table -y -c web` |
 
-`clsx`、`tailwind-merge`、`lucide-react`、`class-variance-authority` 已随 shadcn 安装。
+`clsx`、`tailwind-merge`、`lucide-react`、`class-variance-authority` 已随 shadcn 安装。已装：button、dropdown-menu。

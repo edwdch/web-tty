@@ -27,15 +27,27 @@ make dev
 ```bash
 make test          # go test ./...
 make build         # 前端 embed 进 bin/server
+make release-build # 发版用单二进制（linux 静态链接）
 make web-build     # 只构建前端
 go run ./cmd/server
 pnpm --dir web dev # 仅 Vite；/api 代理到 :8080
 ```
 
+## 发版
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+推送 `v*` tag 后，GitHub Actions 构建 linux/amd64 单二进制并挂到 Release：`simple-app_<tag>_linux_amd64`。下载后直接运行即可（默认 `:8080`，UI 已在二进制内）。
+
+派生项目时改 `go.mod` 的 module 名、源码里的 import 路径，以及 `.github/workflows/release.yml` 里的产物名。
+
 ## 加 UI 组件
 
 ```bash
-pnpm --dir web dlx shadcn@latest add button -y
+pnpm --dir web dlx shadcn@latest add button -y -c web
 ```
 
 给 agent 的完整约定见 [AGENTS.md](./AGENTS.md)。

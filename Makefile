@@ -1,4 +1,4 @@
-.PHONY: dev dev-web dev-api build web-build test tidy
+.PHONY: dev dev-web dev-api build web-build release-build test tidy
 
 # Human local development only. Agents must not use `make dev` to test.
 dev: web-build
@@ -17,6 +17,10 @@ web-build:
 build: web-build
 	mkdir -p bin
 	go build -o bin/server ./cmd/server
+
+release-build: web-build
+	mkdir -p bin
+	CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o bin/server ./cmd/server
 
 test:
 	go test ./...
