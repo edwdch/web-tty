@@ -80,3 +80,11 @@ func InfoFrame(id string) []byte {
 	copy(out[1:], body)
 	return out
 }
+
+func TitleFrame(title string) []byte {
+	body := []byte(title)
+	out := make([]byte, 1+len(body))
+	out[0] = MsgTitle
+	copy(out[1:], body)
+	return out
+}

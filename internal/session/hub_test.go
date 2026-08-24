@@ -3,6 +3,7 @@ package session
 import (
 	"bytes"
 	"os"
+	"strings"
 	"testing"
 	"time"
 )
@@ -199,6 +200,57 @@ func waitClientContains(t *testing.T, out <-chan []byte, needle []byte) []byte {
 			}
 			if bytes.Contains(buf, needle) {
 				return buf
+			}
+		}
+	}
+}
+
+func TestHubWindowTitleFromOSC(t *testing.T) {
+	hub := testHub(t, 2, 0)
+	h, err := hub.Create(80, 24)
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if !strings.HasPrefix(h.Title(), "cat") {
+		t.Fatalf("base title = %q", h.Title())
+	}
+	_, out, _, err := h.AddClient()
+	if err != nil {
+		t.Fatalf("add: %v", err)
+	}
+	if _, err := h.Write([]byte("\x1b]0;grok 40%\x07\n")); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	got := waitTitleContains(t, out, "grok 40%")
+	if !strings.Contains(got, " | ") {
+		t.Fatalf("expected ttyd-style suffix: %q", got)
+	}
+	if h.Title() != got {
+		t.Fatalf("Title() = %q frame = %q", h.Title(), got)
+	}
+
+	if _, err := h.Write([]byte("\x1b]0;\x07\n")); err != nil {
+		t.Fatalf("clear: %v", err)
+	}
+	cleared := waitTitleContains(t, out, "cat")
+	if strings.Contains(cleared, "grok") {
+		t.Fatalf("title not cleared: %q", cleared)
+	}
+}
+
+func waitTitleContains(t *testing.T, out <-chan []byte, needle string) string {
+	t.Helper()
+	deadline := time.After(5 * time.Second)
+	for {
+		select {
+		case <-deadline:
+			t.Fatalf("timeout waiting for title %q", needle)
+		case frame, ok := <-out:
+			if !ok {
+				t.Fatalf("client closed waiting for title %q", needle)
+			}
+			if len(frame) > 0 && frame[0] == MsgTitle && strings.Contains(string(frame[1:]), needle) {
+				return string(frame[1:])
 			}
 		}
 	}

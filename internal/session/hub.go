@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"sync"
 	"time"
@@ -40,6 +41,7 @@ type Info struct {
 
 type Handle interface {
 	ID() string
+	Title() string
 	Write(p []byte) (int, error)
 	Resize(columns, rows uint16) error
 	Pause()
@@ -141,12 +143,16 @@ func (h *Hub) Create(columns, rows uint16) (Handle, error) {
 		id = newID()
 	}
 	now := h.now()
+	base := windowTitle(h.factory.opts.Shell)
 	m := &Managed{
 		id:           id,
 		conn:         pty,
 		hub:          h,
 		clients:      make(map[uint64]chan []byte),
 		buf:          newRing(defaultReplayBytes),
+		osc:          newOSCParser(),
+		baseTitle:    base,
+		currentTitle: base,
 		createdAt:    now,
 		lastDetachAt: now,
 	}
@@ -235,17 +241,27 @@ type Managed struct {
 	id   string
 	conn Conn
 	hub  *Hub
+	osc  oscParser
 
 	mu           sync.Mutex
 	clients      map[uint64]chan []byte
 	nextID       uint64
 	buf          *byteRing
+	baseTitle    string
+	oscTitle     string
+	currentTitle string
 	createdAt    time.Time
 	lastDetachAt time.Time
 	closed       bool
 }
 
 func (m *Managed) ID() string { return m.id }
+
+func (m *Managed) Title() string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.currentTitle
+}
 
 func (m *Managed) Write(p []byte) (int, error) {
 	return m.conn.Write(p)
@@ -315,14 +331,16 @@ func (m *Managed) run() {
 		n, err := m.conn.Read(buf)
 		if n > 0 {
 			chunk := append([]byte(nil), buf[:n]...)
+			titles := m.osc.Feed(chunk)
 			frame := OutputFrame(chunk)
 			m.mu.Lock()
 			if !m.closed {
 				m.buf.Append(chunk)
+				titleFrame := m.updateTitleLocked(titles)
 				for _, ch := range m.clients {
-					select {
-					case ch <- frame:
-					default:
+					trySend(ch, frame)
+					if titleFrame != nil {
+						trySend(ch, titleFrame)
 					}
 				}
 			}
@@ -333,6 +351,50 @@ func (m *Managed) run() {
 			return
 		}
 	}
+}
+
+func (m *Managed) updateTitleLocked(titles []string) []byte {
+	if len(titles) == 0 {
+		return nil
+	}
+	for _, t := range titles {
+		m.oscTitle = t
+	}
+	next := m.displayTitleLocked()
+	if next == m.currentTitle {
+		return nil
+	}
+	m.currentTitle = next
+	return TitleFrame(next)
+}
+
+func (m *Managed) displayTitleLocked() string {
+	if m.oscTitle == "" {
+		return m.baseTitle
+	}
+	return m.oscTitle + " | " + m.baseTitle
+}
+
+func trySend(ch chan []byte, frame []byte) {
+	select {
+	case ch <- frame:
+	default:
+	}
+}
+
+func windowTitle(shell string) string {
+	if shell == "" {
+		shell = "/bin/bash"
+	}
+	name := filepath.Base(shell)
+	if name == "" || name == "." {
+		name = "web-tty"
+	}
+	host, err := os.Hostname()
+	if err != nil || host == "" {
+		return name
+	}
+	return name + " (" + host + ")"
 }
 
 func (m *Managed) shutdown() {

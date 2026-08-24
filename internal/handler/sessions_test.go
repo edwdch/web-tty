@@ -2,7 +2,9 @@ package handler_test
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -136,8 +138,16 @@ func TestDeleteSessionKillsPTY(t *testing.T) {
 	}
 
 	_ = conn.SetReadDeadline(time.Now().Add(3 * time.Second))
-	if _, _, err := conn.ReadMessage(); err == nil {
-		t.Fatal("expected ws close after delete")
+	for {
+		_, _, err := conn.ReadMessage()
+		if err == nil {
+			continue
+		}
+		var ne net.Error
+		if errors.As(err, &ne) && ne.Timeout() {
+			t.Fatal("expected ws close after delete")
+		}
+		break
 	}
 
 	if list := getSessions(t, srv); len(list) != 0 {

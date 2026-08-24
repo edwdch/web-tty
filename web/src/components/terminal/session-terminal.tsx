@@ -21,6 +21,7 @@ import {
   saveLastSessionId,
   type SessionInfo,
 } from "@/lib/sessions"
+import { applyDocumentTitle } from "@/lib/window-title"
 
 export function SessionTerminal() {
   const term = useTerminalSession()
@@ -164,9 +165,7 @@ export function SessionTerminal() {
         key={termKey}
         onData={term.sendInput}
         onResize={term.sendResize}
-        onTitle={(title) => {
-          document.title = title || "web-tty"
-        }}
+        onTitle={applyDocumentTitle}
         registerWriter={term.registerWriter}
       />
       {showSwitcher ? (

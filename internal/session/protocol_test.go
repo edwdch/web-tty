@@ -71,6 +71,16 @@ func TestInfoFrame(t *testing.T) {
 	}
 }
 
+func TestTitleFrame(t *testing.T) {
+	got := TitleFrame("bash (host)")
+	if got[0] != MsgTitle {
+		t.Fatalf("type = %q", got[0])
+	}
+	if string(got[1:]) != "bash (host)" {
+		t.Fatalf("body = %s", got[1:])
+	}
+}
+
 func TestOutputFrame(t *testing.T) {
 	got := OutputFrame([]byte("hi"))
 	if !bytes.Equal(got, []byte{'0', 'h', 'i'}) {

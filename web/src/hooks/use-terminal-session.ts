@@ -13,6 +13,10 @@ import {
   wsURL,
   type Size,
 } from "@/lib/protocol"
+import {
+  applyDocumentTitle,
+  defaultDocumentTitle,
+} from "@/lib/window-title"
 
 export type Writer = (data: Uint8Array | string) => void
 
@@ -64,6 +68,7 @@ export function useTerminalSession() {
     let pingTimer = 0
     expectedCloseRef.current = false
     helloSentRef.current = false
+    applyDocumentTitle(defaultDocumentTitle)
 
     const ws = new WebSocket(target === "new" ? wsURL() : wsURL(target))
     ws.binaryType = "arraybuffer"
@@ -127,8 +132,8 @@ export function useTerminalSession() {
         return
       }
       if (buf[0] === Msg.Title) {
-        const title = decodeTitle(buf.subarray(1))
-        document.title = title || "web-tty"
+        applyDocumentTitle(decodeTitle(buf.subarray(1)))
+        return
       }
     }
 

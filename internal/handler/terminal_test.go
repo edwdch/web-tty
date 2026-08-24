@@ -170,6 +170,24 @@ func TestTerminalKeepAlive(t *testing.T) {
 	})
 }
 
+func TestTerminalSendsWindowTitle(t *testing.T) {
+	conn := startCatSession(t)
+	_ = readInfoID(t, conn)
+	title := readTitle(t, conn)
+	if !strings.Contains(title, "cat") {
+		t.Fatalf("title = %q", title)
+	}
+
+	writeBin(t, conn, append([]byte{'0'}, []byte("\x1b]0;build 3/9\x07\n")...))
+	got := readTitle(t, conn)
+	if !strings.Contains(got, "build 3/9") {
+		t.Fatalf("osc title = %q", got)
+	}
+	if !strings.Contains(got, " | ") {
+		t.Fatalf("expected command suffix: %q", got)
+	}
+}
+
 func TestTerminalReadonlyIgnoresInput(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	hub := testCatHub(t, 2)
@@ -307,6 +325,23 @@ func writeBin(t *testing.T, conn *websocket.Conn, msg []byte) {
 	if err := conn.WriteMessage(websocket.BinaryMessage, msg); err != nil {
 		t.Fatalf("write: %v", err)
 	}
+}
+
+func readTitle(t *testing.T, conn *websocket.Conn) string {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		_ = conn.SetReadDeadline(time.Now().Add(time.Second))
+		_, msg, err := conn.ReadMessage()
+		if err != nil {
+			t.Fatalf("read title: %v", err)
+		}
+		if len(msg) > 0 && msg[0] == session.MsgTitle {
+			return string(msg[1:])
+		}
+	}
+	t.Fatal("timed out waiting for title")
+	return ""
 }
 
 func readOutput(t *testing.T, conn *websocket.Conn) []byte {

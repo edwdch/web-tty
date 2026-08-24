@@ -126,6 +126,11 @@ func serveTerminal(conn *websocket.Conn, hub TerminalHub, writable bool, attachI
 	if err := writeFrame(session.InfoFrame(handle.ID())); err != nil {
 		return
 	}
+	if title := handle.Title(); title != "" {
+		if err := writeFrame(session.TitleFrame(title)); err != nil {
+			return
+		}
+	}
 
 	clientID, out, replay, err := handle.AddClient()
 	if err != nil {
