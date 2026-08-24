@@ -12,7 +12,6 @@ dev-api:
 
 web-build:
 	pnpm --dir web build
-	touch web/dist/.gitkeep
 
 build: web-build
 	mkdir -p bin
@@ -22,7 +21,7 @@ release-build: web-build
 	mkdir -p bin
 	CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o bin/server ./cmd/server
 
-test:
+test: web-build
 	go test ./...
 
 tidy:

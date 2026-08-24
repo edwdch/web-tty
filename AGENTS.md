@@ -11,7 +11,7 @@
 | `internal/handler/` | HTTP / WebSocket handler（`ping`、`/ws`） |
 | `internal/session/` | 二进制协议、PTY（`creack/pty`）、会话上限 |
 | `internal/httpserver/` | Gin 引擎、路由注册、embed `web/dist` 托管 SPA；`.wasm` 的 `Content-Type` 为 `application/wasm` |
-| `web/` | 前端。全屏 `@wterm/react` + Ghostty 核。`web/fs.go` 用 `//go:embed all:dist` 把构建产物打进二进制 |
+| `web/` | 前端。全屏 `@wterm/react` + Ghostty 核。`web/fs.go` 用 `//go:embed dist` 把构建产物打进二进制 |
 | `.air.toml` | air 热重载；监控 `cmd/`、`internal/`、`web/`（含 embed 的 `web/dist`） |
 | `.env.example` | 配置示例；真实 `.env` 不入库 |
 
@@ -26,10 +26,10 @@
 | 命令 | 用途 |
 |------|------|
 | `make dev` | **仅供人类本地开发**：先构建前端，再并行 `vite build --watch` + `air` |
-| `make test` | `go test ./...` |
+| `make test` | 先构建前端，再 `go test ./...`（embed 需要 `web/dist`） |
 | `make build` | 构建前端并 embed 进 `bin/server` |
 | `make release-build` | 同上，`CGO_ENABLED=0` + 剥离符号，供发版 |
-| `make web-build` | 只构建前端（并补 `web/dist/.gitkeep`，保证纯 `go test` 能编过 embed） |
+| `make web-build` | 只构建前端 |
 | `make tidy` | `go mod tidy` + `pnpm --dir web install` |
 | `go run ./cmd/server` | 一次性启动后端（须先有 `web/dist`：embed 是编译期依赖） |
 | `pnpm --dir web build` | 一次性前端生产构建 |
@@ -48,8 +48,8 @@
 
 验证用：
 
-1. `pnpm --dir web build`
-2. `go test ./...` 或 `make test`
+1. `make test`（会先构建前端再 `go test ./...`）
+2. 若本机已有 `web/dist`（例如 `make dev` 在跑），也可以直接 `go test ./...`
 3. 若本机已有服务，**不要**再 `go run` / 不要停掉它，直接 `curl` `/api/ping` 和 `/`
 4. 否则才短跑 `go run ./cmd/server`，打完 `/api/ping` 和 `/` 后关掉该进程
 
@@ -69,7 +69,7 @@
 
 本仓库不做登录。`CheckOrigin` 只防跨站乱连 `/ws`。握手 JSON 里的 `cmd` / `cwd` / `token` 一律忽略。
 
-推送 `v*` tag 会跑 `.github/workflows/release.yml`：测过后编前端、打 linux/amd64 单二进制，挂到 GitHub Release（`web-tty_<tag>_linux_amd64`）。
+推送 `v*` tag 会跑 `.github/workflows/release.yml`：先编前端，再 `go test ./...`，再打 linux/amd64 单二进制，挂到 GitHub Release（`web-tty_<tag>_linux_amd64`）。
 
 ## 前端
 
@@ -103,7 +103,7 @@ pnpm dlx shadcn@latest init -t vite -n web --no-monorepo --base radix --preset n
 
 ## 验证清单
 
-- `go test ./...` 通过
+- `make test` 通过（或已有 `web/dist` 时 `go test ./...` 通过）
 - `pnpm --dir web build` 通过
 - `GET /api/ping` 返回 `{"message":"pong"}`
 - `GET /api/sessions` 返回 `{"sessions":[...]}`

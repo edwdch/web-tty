@@ -5,7 +5,8 @@ import (
 	"io/fs"
 )
 
-//go:embed all:dist
+// dist must contain a Vite build (index.html, assets). Empty dir fails compile.
+//go:embed dist
 var dist embed.FS
 
 func Files() fs.FS {

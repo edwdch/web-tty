@@ -34,7 +34,7 @@ make dev
 ## 常用命令
 
 ```bash
-make test          # go test ./...
+make test          # 先构建前端，再 go test ./...
 make build         # 前端 embed 进 bin/server
 make release-build # 发版用单二进制（linux 静态链接）
 make web-build     # 只构建前端

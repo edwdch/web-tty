@@ -18,9 +18,6 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Test
-        run: go test ./...
-
       - uses: pnpm/action-setup@v4
         with:
           version: 10
@@ -35,6 +32,9 @@ jobs:
         run: |
           pnpm --dir web install --frozen-lockfile
           pnpm --dir web build
+
+      - name: Test
+        run: go test ./...
 
       - name: Build linux/amd64 binary
         run: |

@@ -5,8 +5,7 @@
 *.out
 
 web/node_modules/
-web/dist/**
-!web/dist/.gitkeep
+web/dist/
 web/.vite/
 
 .env
