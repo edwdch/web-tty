@@ -17,9 +17,10 @@ func TestSPAFallback(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	static := fstest.MapFS{
-		"index.html":      {Data: []byte("<!doctype html><title>app</title>")},
-		"assets/app.js":   {Data: []byte("console.log(1)")},
-		"ghostty-vt.wasm": {Data: []byte("wasm-bytes")},
+		"index.html":       {Data: []byte("<!doctype html><title>app</title>")},
+		"assets/app.js":    {Data: []byte("console.log(1)")},
+		"ghostty-vt.wasm":  {Data: []byte("wasm-bytes")},
+		"assets/nfm.woff2": {Data: []byte("woff2-bytes")},
 	}
 	r := newEngine(config.Config{GinMode: gin.TestMode}, static)
 
@@ -40,18 +41,11 @@ func TestSPAFallback(t *testing.T) {
 	})
 
 	t.Run("wasm uses application/wasm", func(t *testing.T) {
-		w := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, "/ghostty-vt.wasm", nil)
-		r.ServeHTTP(w, req)
-		if w.Code != http.StatusOK {
-			t.Fatalf("status = %d", w.Code)
-		}
-		if ct := w.Header().Get("Content-Type"); ct != "application/wasm" {
-			t.Fatalf("Content-Type = %q", ct)
-		}
-		if w.Body.String() != "wasm-bytes" {
-			t.Fatalf("body = %q", w.Body.String())
-		}
+		assertContentType(t, r, "/ghostty-vt.wasm", "application/wasm", "wasm-bytes")
+	})
+
+	t.Run("woff2 uses font/woff2", func(t *testing.T) {
+		assertContentType(t, r, "/assets/nfm.woff2", "font/woff2", "woff2-bytes")
 	})
 
 	t.Run("ws is not spa html", func(t *testing.T) {
@@ -92,6 +86,22 @@ func TestSPAFallbackMissingIndex(t *testing.T) {
 	r.ServeHTTP(w, req)
 	if w.Code != http.StatusNotFound {
 		t.Fatalf("status = %d, want %d", w.Code, http.StatusNotFound)
+	}
+}
+
+func assertContentType(t *testing.T, h http.Handler, path, wantType, wantBody string) {
+	t.Helper()
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, path, nil)
+	h.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d", w.Code)
+	}
+	if ct := w.Header().Get("Content-Type"); ct != wantType {
+		t.Fatalf("Content-Type = %q, want %q", ct, wantType)
+	}
+	if w.Body.String() != wantBody {
+		t.Fatalf("body = %q, want %q", w.Body.String(), wantBody)
 	}
 }
 

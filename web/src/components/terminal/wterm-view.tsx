@@ -7,11 +7,25 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { ghosttyCore } from "@/lib/ghostty-core"
 import type { Writer } from "@/hooks/use-terminal-session"
 
+const termFont = '14px "JetBrainsMono NFM"'
+
 type Props = {
   onData: (data: string) => void
   onResize: (cols: number, rows: number) => void
   onTitle: (title: string) => void
   registerWriter: (write: Writer) => void
+}
+
+async function loadTerminalFont(): Promise<void> {
+  if (!document.fonts) {
+    return
+  }
+  await Promise.all([
+    document.fonts.load(`400 ${termFont}`),
+    document.fonts.load(`700 ${termFont}`),
+    document.fonts.load(`italic 400 ${termFont}`),
+    document.fonts.load(`italic 700 ${termFont}`),
+  ])
 }
 
 export function WTermView({
@@ -26,8 +40,8 @@ export function WTermView({
 
   useEffect(() => {
     let cancelled = false
-    ghosttyCore
-      .then((loaded) => {
+    Promise.all([ghosttyCore, loadTerminalFont().catch(() => undefined)])
+      .then(([loaded]) => {
         if (!cancelled) {
           setCore(loaded)
         }

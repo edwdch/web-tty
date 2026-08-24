@@ -90,9 +90,26 @@ func serveFSFile(c *gin.Context, static fs.FS, name string) {
 		reader = bytes.NewReader(data)
 	}
 
-	if strings.HasSuffix(strings.ToLower(name), ".wasm") {
-		c.Header("Content-Type", "application/wasm")
+	if ct := contentTypeForExt(name); ct != "" {
+		c.Header("Content-Type", ct)
 	}
 
 	http.ServeContent(c.Writer, c.Request, info.Name(), info.ModTime(), reader)
+}
+
+func contentTypeForExt(name string) string {
+	switch strings.ToLower(path.Ext(name)) {
+	case ".wasm":
+		return "application/wasm"
+	case ".woff2":
+		return "font/woff2"
+	case ".woff":
+		return "font/woff"
+	case ".ttf":
+		return "font/ttf"
+	case ".otf":
+		return "font/otf"
+	default:
+		return ""
+	}
 }
