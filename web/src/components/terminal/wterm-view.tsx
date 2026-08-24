@@ -5,9 +5,10 @@ import "@wterm/react/css"
 
 import { Skeleton } from "@/components/ui/skeleton"
 import { ghosttyCore } from "@/lib/ghostty-core"
+import "@/lib/wterm-grid"
 import type { Writer } from "@/hooks/use-terminal-session"
 
-const termFont = '14px "JetBrainsMono NFM"'
+const termFonts = ['13px "IBM Plex Mono"', '13px "JetBrainsMono NFM"']
 
 type Props = {
   onData: (data: string) => void
@@ -16,16 +17,49 @@ type Props = {
   registerWriter: (write: Writer) => void
 }
 
+// @wterm/dom forwards the first IME keydown to the PTY before compositionstart
+// (vercel-labs/wterm#85). Skip that key so input/compositionend deliver the text.
+function attachImeKeydownGuard(root: HTMLElement): void {
+  const textarea = root.querySelector("textarea")
+  if (!textarea) {
+    return
+  }
+  textarea.addEventListener(
+    "keydown",
+    (event) => {
+      if (
+        event.isComposing ||
+        event.keyCode === 229 ||
+        event.key === "Process"
+      ) {
+        event.stopImmediatePropagation()
+        return
+      }
+      if (
+        event.key.length === 1 &&
+        !event.ctrlKey &&
+        !event.altKey &&
+        !event.metaKey
+      ) {
+        event.stopImmediatePropagation()
+      }
+    },
+    true,
+  )
+}
+
 async function loadTerminalFont(): Promise<void> {
   if (!document.fonts) {
     return
   }
-  await Promise.all([
-    document.fonts.load(`400 ${termFont}`),
-    document.fonts.load(`700 ${termFont}`),
-    document.fonts.load(`italic 400 ${termFont}`),
-    document.fonts.load(`italic 700 ${termFont}`),
-  ])
+  await Promise.all(
+    termFonts.flatMap((termFont) => [
+      document.fonts.load(`400 ${termFont}`),
+      document.fonts.load(`700 ${termFont}`),
+      document.fonts.load(`italic 400 ${termFont}`),
+      document.fonts.load(`italic 700 ${termFont}`),
+    ]),
+  )
 }
 
 export function WTermView({
@@ -84,7 +118,8 @@ export function WTermView({
       onData={onData}
       onResize={onResize}
       onTitle={onTitle}
-      onReady={() => {
+      onReady={(wt) => {
+        attachImeKeydownGuard(wt.element)
         registerWriter(write)
       }}
       onError={(err) => {
