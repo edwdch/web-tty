@@ -14,7 +14,12 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": "http://127.0.0.1:8080",
-      "/ws": { target: "http://127.0.0.1:8080", ws: true },
+      "/ws": {
+        target: "http://127.0.0.1:8080",
+        ws: true,
+        timeout: 0,
+        proxyTimeout: 0,
+      },
     },
   },
 })

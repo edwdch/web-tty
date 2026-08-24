@@ -55,6 +55,12 @@ func TestParseResize(t *testing.T) {
 	}
 }
 
+func TestCmdPingByte(t *testing.T) {
+	if CmdPing != '4' {
+		t.Fatalf("CmdPing = %q, want '4'", CmdPing)
+	}
+}
+
 func TestOutputFrame(t *testing.T) {
 	got := OutputFrame([]byte("hi"))
 	if !bytes.Equal(got, []byte{'0', 'h', 'i'}) {

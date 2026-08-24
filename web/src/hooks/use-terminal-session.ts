@@ -5,7 +5,9 @@ import {
   decodeTitle,
   encodeHello,
   encodeInput,
+  encodePing,
   encodeResize,
+  heartbeatIntervalMs,
   sendFrame,
   wsURL,
   type Size,
@@ -36,6 +38,7 @@ export function useTerminalSession() {
     }
 
     let cancelled = false
+    let pingTimer = 0
     helloSentRef.current = false
 
     const ws = new WebSocket(wsURL())
@@ -50,12 +53,35 @@ export function useTerminalSession() {
       helloSentRef.current = true
     }
 
+    const sendPing = () => {
+      if (ws.readyState !== WebSocket.OPEN || !helloSentRef.current) {
+        return
+      }
+      sendFrame(ws, encodePing())
+    }
+
+    const startHeartbeat = () => {
+      if (pingTimer !== 0) {
+        return
+      }
+      pingTimer = window.setInterval(sendPing, heartbeatIntervalMs)
+    }
+
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        sendPing()
+      }
+    }
+
     ws.onopen = () => {
       if (cancelled) {
         return
       }
       sendHello()
+      startHeartbeat()
     }
+
+    document.addEventListener("visibilitychange", onVisibility)
 
     ws.onmessage = (event) => {
       if (cancelled) {
@@ -84,6 +110,8 @@ export function useTerminalSession() {
 
     return () => {
       cancelled = true
+      window.clearInterval(pingTimer)
+      document.removeEventListener("visibilitychange", onVisibility)
       ws.close()
       if (wsRef.current === ws) {
         wsRef.current = null

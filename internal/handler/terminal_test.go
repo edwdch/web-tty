@@ -119,6 +119,52 @@ func TestTerminalInvalidHelloCloses(t *testing.T) {
 	}
 }
 
+func TestTerminalKeepAlive(t *testing.T) {
+	t.Run("websocket pong keeps idle session", func(t *testing.T) {
+		t.Cleanup(handler.OverrideKeepAlive(300*time.Millisecond, 80*time.Millisecond))
+		conn := startCatSession(t)
+		client := pumpWS(conn)
+
+		time.Sleep(time.Second)
+		writeBin(t, conn, append([]byte{'0'}, []byte("alive\n")...))
+		waitOutputContains(t, client, []byte("alive"))
+	})
+
+	t.Run("application ping keeps session without pong", func(t *testing.T) {
+		t.Cleanup(handler.OverrideKeepAlive(300*time.Millisecond, 80*time.Millisecond))
+		conn := startCatSession(t)
+		conn.SetPingHandler(func(string) error { return nil })
+		client := pumpWS(conn)
+
+		deadline := time.Now().Add(time.Second)
+		for time.Now().Before(deadline) {
+			writeBin(t, conn, []byte{session.CmdPing})
+			time.Sleep(80 * time.Millisecond)
+		}
+		writeBin(t, conn, append([]byte{'0'}, []byte("alive\n")...))
+		got := waitOutputContains(t, client, []byte("alive"))
+		if bytes.Contains(got, []byte{session.CmdPing}) {
+			t.Fatalf("ping was written to pty: %q", got)
+		}
+	})
+
+	t.Run("idle session dies without pong or client ping", func(t *testing.T) {
+		t.Cleanup(handler.OverrideKeepAlive(250*time.Millisecond, 80*time.Millisecond))
+		conn := startCatSession(t)
+		conn.SetPingHandler(func(string) error { return nil })
+		client := pumpWS(conn)
+
+		select {
+		case err := <-client.err:
+			if err == nil {
+				t.Fatal("expected close error")
+			}
+		case <-time.After(2 * time.Second):
+			t.Fatal("expected server to close idle connection")
+		}
+	})
+}
+
 func TestTerminalReadonlyIgnoresInput(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	hub := session.NewHub(2, session.NewFactory(session.Options{Shell: "/bin/cat"}))
@@ -136,6 +182,66 @@ func TestTerminalReadonlyIgnoresInput(t *testing.T) {
 	_, msg, err := conn.ReadMessage()
 	if err == nil && bytes.Contains(msg, []byte("secret")) {
 		t.Fatalf("readonly wrote through: %q", msg)
+	}
+}
+
+type wsPump struct {
+	out chan []byte
+	err chan error
+}
+
+func startCatSession(t *testing.T) *websocket.Conn {
+	t.Helper()
+	gin.SetMode(gin.TestMode)
+	hub := session.NewHub(4, session.NewFactory(session.Options{Shell: "/bin/cat"}))
+	r := gin.New()
+	r.GET("/ws", handler.Terminal(hub, true, handler.CheckOrigin(nil)))
+	srv := httptest.NewServer(r)
+	t.Cleanup(srv.Close)
+
+	conn := dialWS(t, srv)
+	t.Cleanup(func() { _ = conn.Close() })
+	writeBin(t, conn, []byte(`{"columns":80,"rows":24}`))
+	return conn
+}
+
+func pumpWS(conn *websocket.Conn) *wsPump {
+	p := &wsPump{
+		out: make(chan []byte, 32),
+		err: make(chan error, 1),
+	}
+	go func() {
+		for {
+			_, msg, err := conn.ReadMessage()
+			if err != nil {
+				p.err <- err
+				return
+			}
+			if len(msg) > 0 && msg[0] == session.MsgOutput {
+				chunk := append([]byte(nil), msg[1:]...)
+				p.out <- chunk
+			}
+		}
+	}()
+	return p
+}
+
+func waitOutputContains(t *testing.T, p *wsPump, needle []byte) []byte {
+	t.Helper()
+	deadline := time.After(5 * time.Second)
+	var buf []byte
+	for {
+		select {
+		case err := <-p.err:
+			t.Fatalf("ws closed: %v (got %q)", err, buf)
+		case <-deadline:
+			t.Fatalf("timeout, got %q want %q", buf, needle)
+		case chunk := <-p.out:
+			buf = append(buf, chunk...)
+			if bytes.Contains(buf, needle) {
+				return buf
+			}
+		}
 	}
 }
 

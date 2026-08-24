@@ -3,8 +3,11 @@ export const Cmd = {
   Resize: 0x31,
   Pause: 0x32,
   Resume: 0x33,
+  Ping: 0x34,
   Hello: 0x7b,
 } as const
+
+export const heartbeatIntervalMs = 15_000
 
 export const Msg = {
   Output: 0x30,
@@ -47,6 +50,10 @@ export function encodeResize(size: Size): Uint8Array {
   msg[0] = Cmd.Resize
   msg.set(body, 1)
   return msg
+}
+
+export function encodePing(): Uint8Array {
+  return new Uint8Array([Cmd.Ping])
 }
 
 export function decodeTitle(payload: Uint8Array): string {

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -16,9 +17,15 @@ import (
 const (
 	handshakeTimeout = 10 * time.Second
 	writeWait        = 10 * time.Second
-	pongWait         = 60 * time.Second
-	pingPeriod       = (pongWait * 9) / 10
 	readBufSize      = 16 * 1024
+	tcpKeepAlive     = 30 * time.Second
+)
+
+// pingPeriod stays below common proxy/NAT idle timeouts (~30–60s). Client
+// CmdPing also refreshes the read deadline if intermediaries drop control frames.
+var (
+	pongWait   = 60 * time.Second
+	pingPeriod = 15 * time.Second
 )
 
 type TerminalHub interface {
@@ -70,6 +77,7 @@ func Terminal(hub TerminalHub, writable bool, checkOrigin func(*http.Request) bo
 			return
 		}
 		defer conn.Close()
+		enableTCPKeepAlive(conn)
 
 		serveTerminal(conn, hub, writable)
 	}
@@ -167,9 +175,19 @@ func serveTerminal(conn *websocket.Conn, hub TerminalHub, writable bool) {
 			sess.Pause()
 		case session.CmdResume:
 			sess.Resume()
+		case session.CmdPing:
+			// keep-alive; read deadline already refreshed
 		}
 	}
 	_ = conn.Close()
 	_ = sess.Close()
 	<-done
+}
+
+func enableTCPKeepAlive(conn *websocket.Conn) {
+	nc := conn.NetConn()
+	if tc, ok := nc.(*net.TCPConn); ok {
+		_ = tc.SetKeepAlive(true)
+		_ = tc.SetKeepAlivePeriod(tcpKeepAlive)
+	}
 }

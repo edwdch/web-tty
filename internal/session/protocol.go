@@ -10,6 +10,7 @@ const (
 	CmdResize byte = '1'
 	CmdPause  byte = '2'
 	CmdResume byte = '3'
+	CmdPing   byte = '4'
 	CmdHello  byte = '{'
 
 	MsgOutput byte = '0'
