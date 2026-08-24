@@ -2,10 +2,14 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-/* Nerd Fonts v3.5.1 JetBrainsMono NFM (OFL-1.1, see src/fonts/OFL.txt) */
+/* JetBrainsMono NFM (Nerd Fonts v3.4.0, OFL-1.1).
+   Primary: cdn.jsdmirror.com (jsDelivr China mirror). Fallback: cdn.jsdelivr.net. */
 @font-face {
     font-family: "JetBrainsMono NFM";
-    src: url("./fonts/JetBrainsMonoNerdFontMono-Regular.woff2") format("woff2");
+    src:
+        local("JetBrainsMonoNerdFontMono-Regular"),
+        url("https://cdn.jsdmirror.com/gh/Nick2bad4u/nerd-fonts-woff2@v1.0.5/fonts/woff2/JetBrainsMono/Ligatures/Regular/JetBrainsMonoNerdFontMono-Regular.woff2") format("woff2"),
+        url("https://cdn.jsdelivr.net/gh/Nick2bad4u/nerd-fonts-woff2@v1.0.5/fonts/woff2/JetBrainsMono/Ligatures/Regular/JetBrainsMonoNerdFontMono-Regular.woff2") format("woff2");
     font-weight: 400;
     font-style: normal;
     font-display: block;
@@ -13,7 +17,10 @@
 
 @font-face {
     font-family: "JetBrainsMono NFM";
-    src: url("./fonts/JetBrainsMonoNerdFontMono-Bold.woff2") format("woff2");
+    src:
+        local("JetBrainsMonoNerdFontMono-Bold"),
+        url("https://cdn.jsdmirror.com/gh/Nick2bad4u/nerd-fonts-woff2@v1.0.5/fonts/woff2/JetBrainsMono/Ligatures/Bold/JetBrainsMonoNerdFontMono-Bold.woff2") format("woff2"),
+        url("https://cdn.jsdelivr.net/gh/Nick2bad4u/nerd-fonts-woff2@v1.0.5/fonts/woff2/JetBrainsMono/Ligatures/Bold/JetBrainsMonoNerdFontMono-Bold.woff2") format("woff2");
     font-weight: 700;
     font-style: normal;
     font-display: block;
@@ -21,7 +28,10 @@
 
 @font-face {
     font-family: "JetBrainsMono NFM";
-    src: url("./fonts/JetBrainsMonoNerdFontMono-Italic.woff2") format("woff2");
+    src:
+        local("JetBrainsMonoNerdFontMono-Italic"),
+        url("https://cdn.jsdmirror.com/gh/Nick2bad4u/nerd-fonts-woff2@v1.0.5/fonts/woff2/JetBrainsMono/Ligatures/Italic/JetBrainsMonoNerdFontMono-Italic.woff2") format("woff2"),
+        url("https://cdn.jsdelivr.net/gh/Nick2bad4u/nerd-fonts-woff2@v1.0.5/fonts/woff2/JetBrainsMono/Ligatures/Italic/JetBrainsMonoNerdFontMono-Italic.woff2") format("woff2");
     font-weight: 400;
     font-style: italic;
     font-display: block;
@@ -29,7 +39,10 @@
 
 @font-face {
     font-family: "JetBrainsMono NFM";
-    src: url("./fonts/JetBrainsMonoNerdFontMono-BoldItalic.woff2") format("woff2");
+    src:
+        local("JetBrainsMonoNerdFontMono-BoldItalic"),
+        url("https://cdn.jsdmirror.com/gh/Nick2bad4u/nerd-fonts-woff2@v1.0.5/fonts/woff2/JetBrainsMono/Ligatures/BoldItalic/JetBrainsMonoNerdFontMono-BoldItalic.woff2") format("woff2"),
+        url("https://cdn.jsdelivr.net/gh/Nick2bad4u/nerd-fonts-woff2@v1.0.5/fonts/woff2/JetBrainsMono/Ligatures/BoldItalic/JetBrainsMonoNerdFontMono-BoldItalic.woff2") format("woff2");
     font-weight: 700;
     font-style: italic;
     font-display: block;
