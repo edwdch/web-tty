@@ -40,13 +40,13 @@ jobs:
         run: |
           mkdir -p dist
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" \
-            -o "dist/simple-app_${GITHUB_REF_NAME}_linux_amd64" ./cmd/server
-          (cd dist && sha256sum simple-app_* > checksums.txt)
+            -o "dist/web-tty_${GITHUB_REF_NAME}_linux_amd64" ./cmd/server
+          (cd dist && sha256sum web-tty_* > checksums.txt)
 
       - uses: softprops/action-gh-release@v2
         with:
           files: |
-            dist/simple-app_*_linux_amd64
+            dist/web-tty_*_linux_amd64
             dist/checksums.txt
           generate_release_notes: true
           prerelease: ${{ contains(github.ref_name, '-') }}

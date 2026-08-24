@@ -1,6 +1,6 @@
 # AGENTS.md
 
-本仓库是 Go（Gin）+ React（Vite / shadcn/ui / Tailwind）模板。默认只提供 `GET /api/ping`，可在此结构上扩展。不要预建空的 `repository/`、`service/`、`models/` 等分层目录。
+本仓库是浏览器 Web TTY：Go（Gin）+ React（Vite / shadcn/ui / Tailwind）。当前只提供 `GET /api/ping`，尚未实现终端功能。不要预建空的 `repository/`、`service/`、`models/` 等分层目录。
 
 ## 目录
 
@@ -60,7 +60,7 @@
 
 新增配置项时同步改 `internal/config` 和 `.env.example`。在仓库根目录运行进程，以便找到 `.env`。
 
-推送 `v*` tag 会跑 `.github/workflows/release.yml`：测过后编前端、打 linux/amd64 单二进制，挂到 GitHub Release（`simple-app_<tag>_linux_amd64`）。派生项目时改 `go.mod` module 名、import 路径和 workflow 产物名。
+推送 `v*` tag 会跑 `.github/workflows/release.yml`：测过后编前端、打 linux/amd64 单二进制，挂到 GitHub Release（`web-tty_<tag>_linux_amd64`）。
 
 ## 前端组件
 

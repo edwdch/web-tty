@@ -8,7 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"simple-app/internal/handler"
+	"github.com/edwdch/web-tty/internal/handler"
 )
 
 func TestPing(t *testing.T) {

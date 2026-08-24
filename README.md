@@ -1,6 +1,6 @@
-# simple-app
+# web-tty
 
-Go (Gin) + React (Vite, shadcn/ui, Tailwind CSS) 模板。后端提供 `GET /api/ping`。前端构建产物在编译期 embed 进二进制，Gin 从 embed FS 托管。
+浏览器 Web TTY：Go（Gin）+ React（Vite, shadcn/ui, Tailwind CSS）。当前仅提供 `GET /api/ping`，尚未实现终端功能。前端构建产物在编译期 embed 进二进制，Gin 从 embed FS 托管。
 
 ## 要求
 
@@ -40,9 +40,7 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-推送 `v*` tag 后，GitHub Actions 构建 linux/amd64 单二进制并挂到 Release：`simple-app_<tag>_linux_amd64`。下载后直接运行即可（默认 `:8080`，UI 已在二进制内）。
-
-派生项目时改 `go.mod` 的 module 名、源码里的 import 路径，以及 `.github/workflows/release.yml` 里的产物名。
+推送 `v*` tag 后，GitHub Actions 构建 linux/amd64 单二进制并挂到 Release：`web-tty_<tag>_linux_amd64`。下载后直接运行即可（默认 `:8080`，UI 已在二进制内）。
 
 ## 加 UI 组件
 

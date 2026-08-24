@@ -10,9 +10,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"simple-app/internal/config"
-	"simple-app/internal/handler"
-	"simple-app/web"
+	"github.com/edwdch/web-tty/internal/config"
+	"github.com/edwdch/web-tty/internal/handler"
+	"github.com/edwdch/web-tty/web"
 )
 
 func New(cfg config.Config) *gin.Engine {

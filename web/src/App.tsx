@@ -39,7 +39,7 @@ export function App() {
         <div className="flex w-full max-w-sm flex-col gap-4">
           <div>
             <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-              simple-app
+              web-tty
             </p>
             <h1 className="mt-1 text-lg font-medium">API ping</h1>
             <p className="text-muted-foreground text-sm">

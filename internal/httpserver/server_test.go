@@ -9,7 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"simple-app/internal/config"
+	"github.com/edwdch/web-tty/internal/config"
 )
 
 func TestSPAFallback(t *testing.T) {

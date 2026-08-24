@@ -1,4 +1,4 @@
-module simple-app
+module github.com/edwdch/web-tty
 
 go 1.26.5
 

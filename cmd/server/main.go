@@ -5,8 +5,8 @@ import (
 
 	"github.com/joho/godotenv"
 
-	"simple-app/internal/config"
-	"simple-app/internal/httpserver"
+	"github.com/edwdch/web-tty/internal/config"
+	"github.com/edwdch/web-tty/internal/httpserver"
 )
 
 func main() {
