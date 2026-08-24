@@ -6,6 +6,8 @@ export type SessionInfo = {
   clients: number
 }
 
+// sessionStorage is per-tab and survives refresh (unlike localStorage, which is
+// shared). A new tab starts empty. Duplicating a tab copies the value.
 const lastKey = "web-tty.lastSessionId"
 
 export function loadLastSessionId(): string | null {
@@ -22,6 +24,15 @@ export function saveLastSessionId(id: string): void {
   } catch {
     // ignore quota / private mode
   }
+}
+
+/** This tab's last session, if that PTY is still running. */
+export function resumeSessionId(list: SessionInfo[]): string | null {
+  const last = loadLastSessionId()
+  if (last && list.some((s) => s.id === last)) {
+    return last
+  }
+  return null
 }
 
 export async function fetchSessions(): Promise<SessionInfo[]> {
@@ -43,11 +54,7 @@ export async function deleteSession(id: string): Promise<void> {
 }
 
 export function pickDefaultSession(list: SessionInfo[]): string | null {
-  const last = loadLastSessionId()
-  if (last && list.some((s) => s.id === last)) {
-    return last
-  }
-  return list[0]?.id ?? null
+  return resumeSessionId(list) ?? list[0]?.id ?? null
 }
 
 export function shortSessionId(id: string): string {

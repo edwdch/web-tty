@@ -18,6 +18,7 @@ import {
   deleteSession,
   fetchSessions,
   pickDefaultSession,
+  resumeSessionId,
   saveLastSessionId,
   type SessionInfo,
 } from "@/lib/sessions"
@@ -65,6 +66,11 @@ export function SessionTerminal() {
         }
         bootDecided.current = true
         setSessions(list)
+        const resume = resumeSessionId(list)
+        if (resume) {
+          connect(resume)
+          return
+        }
         if (list.length === 0) {
           connect("new")
           return

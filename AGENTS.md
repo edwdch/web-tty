@@ -1,6 +1,6 @@
 # AGENTS.md
 
-本仓库是浏览器 Web TTY：Go（Gin）+ React（Vite / shadcn/ui / Tailwind）+ `@wterm/ghostty`。每个浏览器 tab 一条 WebSocket；PTY 活在进程内 Hub 里，关页是 detach 不是杀进程。进页时若没有运行中的 session 就直接新建；若有则弹窗选择继续或新建。右上角固定半透明按钮可切换 / 关闭 session。多 tab 可以 attach 同一个 PTY。不要预建空的 `repository/`、`service/`、`models/` 等分层目录。不要加鉴权、Docker 或 tmux；session 只在本进程内存里，服务重启即全部丢失。
+本仓库是浏览器 Web TTY：Go（Gin）+ React（Vite / shadcn/ui / Tailwind）+ `@wterm/ghostty`。每个浏览器 tab 一条 WebSocket；PTY 活在进程内 Hub 里，关页是 detach 不是杀进程。每个 tab 用 `sessionStorage`（`web-tty.lastSessionId`）记住自己上次 attach 的 session：刷新时若该 session 还在就直接 attach，不弹窗；新 tab（没有这份记录）或记录里的 session 已经没了，才走「没有运行中的 session 就直接新建，否则弹窗选择继续或新建」。右上角固定半透明按钮可切换 / 关闭 session。多 tab 可以 attach 同一个 PTY。不要预建空的 `repository/`、`service/`、`models/` 等分层目录。不要加鉴权、Docker 或 tmux；session 只在本进程内存里，服务重启即全部丢失。
 
 ## 目录
 
@@ -73,7 +73,7 @@
 
 ## 前端
 
-页面只有全屏终端，无顶栏、无 ping 卡片。右上角 `position: fixed` 半透明 Sessions 按钮（页面滚动也不跟着走），点开 Dialog 切换或关闭 session。进页无运行中 session 则直接新建；有则弹窗选择。断线弹出 shadcn `AlertDialog`：Reconnect（`location.reload()`，再走进页规则）或 Close page（`window.close()`，失败则 `about:blank`）。不要自动重连。不要恢复 `d` 切主题快捷键。
+页面只有全屏终端，无顶栏、无 ping 卡片。右上角 `position: fixed` 半透明 Sessions 按钮（页面滚动也不跟着走），点开 Dialog 切换或关闭 session。每个 tab 用 `sessionStorage`（`web-tty.lastSessionId`）记住上次 attach 的 session：刷新时该 session 仍在则直接 attach；新 tab 或记录已失效时，无运行中 session 则直接新建，有则弹窗选择。断线弹出 shadcn `AlertDialog`：Reconnect（`location.reload()`，再走进页规则）或 Close page（`window.close()`，失败则 `about:blank`）。不要自动重连。不要恢复 `d` 切主题快捷键。
 
 Ghostty wasm 由 Vite 通过 `import.meta.url` 打进 `web/dist/assets/*.wasm`，不要手抄进 git。
 

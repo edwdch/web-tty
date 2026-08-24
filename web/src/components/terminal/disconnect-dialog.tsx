@@ -22,8 +22,8 @@ export function DisconnectDialog({ open, onReconnect, onClosePage }: Props) {
           <AlertDialogTitle>Disconnected</AlertDialogTitle>
           <AlertDialogDescription>
             The connection was lost. The session may still be running in the
-            background. Reconnect reloads this page so you can attach again or
-            start a new shell.
+            background. Reconnect reloads this page; if this tab's session is
+            still running it attaches automatically.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
